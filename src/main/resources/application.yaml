@@ -1,0 +1,22 @@
+spring:
+  main:
+    banner-mode: off
+
+app:
+  kafka:
+    bootstrapServers: localhost:9092
+    ssl:
+      enabled: false
+    consumer:
+      groupId: kafka-retry-mechanism-app
+      enableAutoCommit: false
+      autoOffsetReset: earliest
+      maxPollRecords: 3
+    topics:
+      email-message-received:
+        topic: email.msg.rcvd
+        partitions: 3
+        replication-factor: 1
+        concurrency: 3
+        creationMode: CREATE_OR_UPGRADE
+        retryEnabled: true

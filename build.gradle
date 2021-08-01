@@ -1,0 +1,45 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '2.5.3'
+}
+
+ext {
+    jacksonVersion = '2.12.4'
+}
+
+apply plugin: 'io.spring.dependency-management'
+
+group 'com.shahinnazarov'
+version '0.0.1'
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+sourceCompatibility = '11'
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:${jacksonVersion}"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jacksonVersion}"
+
+    implementation 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+}
+
+test {
+    useJUnitPlatform()
+}
