@@ -1,8 +1,10 @@
 package com.shahinnazarov.krm.configs;
 
+import static com.shahinnazarov.krm.utils.Constants.BACK_OFF_PERIOD;
 import static com.shahinnazarov.krm.utils.Constants.BEAN_CONTAINER_FACTORY;
 import static com.shahinnazarov.krm.utils.Constants.BEAN_EMAIL_MESSAGE_RECEIVED_CONSUMER;
 import static com.shahinnazarov.krm.utils.Constants.BEAN_EMAIL_MESSAGE_RECEIVED_CONTAINER;
+import static com.shahinnazarov.krm.utils.Constants.MAX_ATTEMPTS;
 import static org.springframework.kafka.listener.ContainerProperties.AckMode.MANUAL_IMMEDIATE;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -10,7 +12,6 @@ import com.shahinnazarov.krm.container.models.KafkaConfigModel;
 import com.shahinnazarov.krm.container.models.KafkaTopicConfigModel;
 import com.shahinnazarov.krm.handlers.KafkaConsumerErrorHandler;
 import com.shahinnazarov.krm.services.consumers.EmailMessageReceivedConsumer;
-import com.shahinnazarov.krm.services.consumers.RetryConsumer;
 import com.shahinnazarov.krm.utils.Constants;
 import java.io.IOException;
 import java.util.HashMap;
@@ -21,7 +22,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ResourceLoader;
@@ -36,15 +36,10 @@ import org.springframework.retry.support.RetryTemplate;
 @Slf4j
 @RequiredArgsConstructor
 public class KafkaConsumerConfig {
-
-    public static final long BACK_OFF_PERIOD = 250L;
-    public static final int MAX_ATTEMPTS = 2;
-    public static final String RETRY_TOPIC_PATTERN = "%s%s%s";
     private final KafkaConfigModel kafkaConfigModel;
     private final KafkaTopicConfig kafkaTopicConfig;
     private final ResourceLoader resourceLoader;
     private final KafkaConsumerErrorHandler errorHandler;
-    private final ConfigurableApplicationContext ctx;
 
     public Map<String, Object> consumerStringStringProperties() throws IOException {
         Map<String, Object> props = new HashMap<>();
@@ -93,32 +88,6 @@ public class KafkaConsumerConfig {
         return container;
     }
 
-
-    public void registerRetryContainers(RetryConsumer retryConsumer,
-                                        ConcurrentKafkaListenerContainerFactory<String, String> containerFactory
-    ) {
-        registerRetryContainers(retryConsumer, containerFactory, getRetryableTopics("01"));
-        registerRetryContainers(retryConsumer, containerFactory, getRetryableTopics("05"));
-        registerRetryContainers(retryConsumer, containerFactory, getRetryableTopics("15"));
-    }
-
-    private void registerRetryContainers(
-            RetryConsumer retryConsumer,
-            ConcurrentKafkaListenerContainerFactory<String, String> containerFactory,
-            String[] topics) {
-        for (String topic : topics) {
-            ConcurrentMessageListenerContainer<String, String> container =
-                    containerFactory.createContainer(topic);
-            container.setAutoStartup(true);
-            final var beanName = "RETRY_BEAN_".concat(topic);
-            container.setBeanName(beanName);
-            container.getContainerProperties().setMissingTopicsFatal(false);
-            container.setupMessageListener(retryConsumer);
-
-            ctx.getBeanFactory().registerSingleton(beanName, container);
-        }
-    }
-
     private RetryTemplate retryTemplate() {
         final var retryTemplate = new RetryTemplate();
 
@@ -132,14 +101,4 @@ public class KafkaConsumerConfig {
 
         return retryTemplate;
     }
-
-    private String[] getRetryableTopics(String minutes) {
-        return kafkaConfigModel.getTopics().values().stream().filter(KafkaTopicConfigModel::getRetryEnabled)
-                .map(KafkaTopicConfigModel::getTopic).map(
-                        topicName -> String
-                                .format(RETRY_TOPIC_PATTERN, topicName, KafkaConsumerErrorHandler.RETRY_TOPIC_KEY,
-                                        minutes)
-                ).toArray(String[]::new);
-    }
-
 }

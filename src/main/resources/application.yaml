@@ -19,4 +19,5 @@ app:
         replication-factor: 1
         concurrency: 3
         creationMode: CREATE_OR_UPGRADE
-        retryEnabled: true
+        retryMinutes: [1, 2, 3]
+        retryTopicPrefix: APP_ID_RETRY

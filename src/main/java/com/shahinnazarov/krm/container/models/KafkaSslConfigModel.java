@@ -1,12 +1,14 @@
 package com.shahinnazarov.krm.container.models;
 
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 
 @Data
+@RequiredArgsConstructor
 public class KafkaSslConfigModel {
-    private String protocol;
-    private String trustStoreLocation;
-    private String trustStorePassword;
-    private Boolean enabled = false;
+    private final String protocol;
+    private final String trustStoreLocation;
+    private final String trustStorePassword;
+    private final Boolean enabled;
 
 }

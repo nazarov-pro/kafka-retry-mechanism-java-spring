@@ -1,7 +1,9 @@
 package com.shahinnazarov.krm.services.consumers;
 
 import static com.shahinnazarov.krm.utils.Constants.BEAN_RETRY_CONSUMER;
+import static com.shahinnazarov.krm.utils.Constants.INITIAL_TIMESTAMP_KEY;
 
+import com.shahinnazarov.krm.container.models.KafkaConfigModel;
 import com.shahinnazarov.krm.handlers.KafkaConsumerErrorHandler;
 import com.shahinnazarov.krm.utils.TimeUtils;
 import java.nio.charset.StandardCharsets;
@@ -25,6 +27,7 @@ public class RetryConsumer implements AcknowledgingMessageListener<String, Strin
     public static final String RETRY_DURATION = "RetryDuration";
     private static final long ONE_MINUTE_IN_MILLIS = 60000L;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaConfigModel kafkaConfigModel;
     private final ApplicationContext applicationContext;
     private final TimeUtils timeUtils;
 
@@ -32,18 +35,18 @@ public class RetryConsumer implements AcknowledgingMessageListener<String, Strin
     @Override
     public void onMessage(ConsumerRecord<String, String> data, Acknowledgment acknowledgment) {
         log.info("Retry message received {} id. {} ||| {}", data.key(), data.topic(), data.offset());
+        final var retryTopicModel = kafkaConfigModel.getRetryEnabledTopics().get(data.topic());
 
-        var duration = KafkaConsumerErrorHandler.extractCurrentPeriod(data);
         final var container = getContainer(data.topic());
         container.pause();
-        waitForTime(data, duration);
+        waitForTime(data, retryTopicModel.getMinute());
         container.resume();
 
-        final var baseTopic = KafkaConsumerErrorHandler.extractBaseTopic(data.topic());
-        final var producerRecord = new ProducerRecord<>(baseTopic, data.key(), data.value());
+        final var producerRecord = new ProducerRecord<>(retryTopicModel.getTopicName(), data.key(), data.value());
 
-        producerRecord.headers().add(data.headers().lastHeader(KafkaConsumerErrorHandler.INITIAL_TIMESTAMP_KEY));
-        producerRecord.headers().add(RETRY_DURATION, String.valueOf(duration).getBytes(StandardCharsets.UTF_8));
+        producerRecord.headers().add(data.headers().lastHeader(INITIAL_TIMESTAMP_KEY));
+        producerRecord.headers().add(RETRY_DURATION, String.valueOf(retryTopicModel.getMinute())
+                .getBytes(StandardCharsets.UTF_8));
         kafkaTemplate.send(producerRecord).get();
         acknowledgment.acknowledge();
     }
@@ -57,7 +60,7 @@ public class RetryConsumer implements AcknowledgingMessageListener<String, Strin
     private void waitForTime(ConsumerRecord<String, String> data, Integer duration) {
         final var currentTimestamp = timeUtils.epochMillis();
         final var initialTimestamp = KafkaConsumerErrorHandler
-                .getHeader(KafkaConsumerErrorHandler.INITIAL_TIMESTAMP_KEY, data)
+                .getHeader(INITIAL_TIMESTAMP_KEY, data)
                 .map(Long::valueOf)
                 .orElse(currentTimestamp);
         final var expirationTimestamp = initialTimestamp + ONE_MINUTE_IN_MILLIS * duration;

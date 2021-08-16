@@ -1,13 +1,16 @@
 package com.shahinnazarov.krm.container.models;
 
 import lombok.Data;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
-@Data
+@Getter
+@RequiredArgsConstructor
 public class KafkaConsumerConfigModel {
-    private String groupId;
-    private String retryGroupId;
-    private String enableAutoCommit;
-    private String autoOffsetReset;
-    private Integer maxPollRecords;
-    private Integer maxPollInterval;
+    private final String groupId;
+    private final String retryGroupId;
+    private final String enableAutoCommit;
+    private final String autoOffsetReset;
+    private final Integer maxPollRecords;
+    private final Integer maxPollInterval;
 }
